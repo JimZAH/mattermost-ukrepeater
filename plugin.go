@@ -105,7 +105,7 @@ func RepeaterAPI(cmd string, ctype int) string {
 
 	case 1:
 		var repeaters Repeaters
-		body, err := APIReceiver(config.ApiURL + "/" + cmd)
+		body, err := APIReceiver(config.ApiURL + "/findbylocator/" + cmd)
 		if err != nil {
 			return "Error extracting project data response: " + err.Error()
 		}
