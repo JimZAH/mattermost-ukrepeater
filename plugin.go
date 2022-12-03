@@ -181,6 +181,13 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 	trigger := strings.TrimPrefix(strings.Fields(args.Command)[0], "/")
 	switch trigger {
 	case "ukrepeater":
+		/* Check the query is of the right length */
+		if len(args.Command) < 14 {
+			return &model.CommandResponse{
+				ResponseType: model.CommandResponseTypeEphemeral,
+				Text:         fmt.Sprintf("No John, you need to enter something for me to work with!"),
+			}, nil
+		}
 		var err error
 		callsign := strings.Fields(args.Command)[1]
 		for _, r := range callsign {
