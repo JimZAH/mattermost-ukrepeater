@@ -1,0 +1,29 @@
+{
+    "id": "com.mattermost.server-ukrepeater",
+    "name": "UKRepeater",
+    "server": {
+        "executable": "plugin.exe"
+    },
+    "settings_schema": {
+        "header": "Configure ukrepeater plugin",
+        "footer": "Footer: For more information, speak to M0ZAH",
+        "settings": [
+            {
+                "key": "api",
+                "display_name": "Set API URL",
+                "type": "text",
+                "help_text": "The endpoint",
+                "placeholder": "http://google.com",
+                "default": "http://example.com"
+            },
+            {
+                "key": "refresh",
+                "display_name": "Set refresh rate",
+                "type": "number",
+                "help_text": "How often the database is updated",
+                "placeholder": "3800",
+                "default": "3800"
+            }
+        ]
+    }
+}
