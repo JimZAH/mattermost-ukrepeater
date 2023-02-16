@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/mattermost/mattermost-server/v6/model"
@@ -20,8 +21,11 @@ type Configuration struct {
 	/* API URL */
 	ApiURL string
 
+	/* Store the last time we sent a refresh request */
+	LastRefresh Timer
+
 	/* Refresh rate for api database reload, reserved for future use */
-	Refresh uint64
+	Refresh int
 }
 
 type Plugin struct {
@@ -57,6 +61,10 @@ type Repeaters struct {
 	RepeaterList []string   `json:"repeater_list"`
 }
 
+type Timer struct {
+	start time.Time
+}
+
 /* APIReceiver makes the http call to the API server */
 func APIReceiver(URL string) ([]byte, error) {
 	client := &http.Client{}
@@ -84,6 +92,15 @@ func APIReceiver(URL string) ([]byte, error) {
 
 /* RepeaterAPI handle and process the request type */
 func RepeaterAPI(cmd string, ctype int) string {
+
+	/* Check to see if we should ask Rik's DB to update */
+	if config.LastRefresh.start.Sub(time.Now()) >= time.Duration(config.Refresh) {
+		config.LastRefresh.start = time.Now()
+		if _, err := APIReceiver(config.ApiURL + "/update"); err != nil {
+			return "There was an issue updating: " + err.Error()
+		}
+	}
+
 	switch ctype {
 	case 0:
 		var repeater Repeater
@@ -125,10 +142,6 @@ func RepeaterAPI(cmd string, ctype int) string {
 		}
 		return response + "API Provided by Rik M7GMT"
 
-	case 2:
-		if _, err := APIReceiver(config.ApiURL + "/update"); err != nil {
-			return "There was an issue updating: " + err.Error()
-		}
 	}
 
 	return ""
@@ -149,7 +162,7 @@ func RepeaterLookup(msg string) (string, error) {
 	case "jo", "io":
 		return RepeaterAPI(cmd, 1), nil
 	case "re":
-		return RepeaterAPI(cmd, 2), nil
+		return "Repeater database updates are handled automatically", nil
 	default:
 		return "", fmt.Errorf("Command is not known: %s, Full: %s", cmd[0:2], cmd)
 	}
@@ -168,7 +181,10 @@ func (p *Plugin) OnActivate() error {
 	conf := p.API.GetPluginConfig()
 
 	config.ApiURL = conf["api"].(string)
-	//config.Refresh = conf["refresh"].(uint64)
+	//config.Refresh = conf["refresh"].(int)
+	/* Currently hard coded refresh time */
+	config.Refresh = 86400
+	config.LastRefresh.start = time.Now()
 
 	p.configuration = &config
 
