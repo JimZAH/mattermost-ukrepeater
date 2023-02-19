@@ -9,6 +9,14 @@
         "footer": "Footer: For more information, speak to M0ZAH",
         "settings": [
             {
+                "key": "admin",
+                "display_name": "Set Admin room",
+                "type": "text",
+                "help_text": "The endpoint",
+                "placeholder": "sh-23-dd",
+                "default": "n/a"
+            },
+            {
                 "key": "api",
                 "display_name": "Set API URL",
                 "type": "text",

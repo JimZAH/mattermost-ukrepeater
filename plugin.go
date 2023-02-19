@@ -18,6 +18,9 @@ var config Configuration
 
 type Configuration struct {
 
+	/* Admin Room */
+	Admin string
+
 	/* API URL */
 	ApiURL string
 
@@ -25,7 +28,7 @@ type Configuration struct {
 	LastRefresh Timer
 
 	/* Refresh rate for api database reload, reserved for future use */
-	Refresh int
+	Refresh int64
 }
 
 type Plugin struct {
@@ -44,11 +47,21 @@ type Repeater struct {
 	TX       string `json:"tx"`
 	RX       string `json:"rx"`
 	Tone     string `json:"tone"`
+	Channel  string `json:"channel"`
+	Mode     string `json:"mode"`
 	Location struct {
-		Lat     float32 `json:"lat"`
-		Lon     float32 `json:"lng"`
-		Locator string  `json:"locator"`
+		Lat       float32 `json:"lat"`
+		Lon       float32 `json:"lng"`
+		Locator   string  `json:"locator"`
+		Placename string  `json:"placename"`
+		Region    string  `json:"region"`
 	} `json:"location"`
+	Keeper      string `json:"keeper"`
+	Api_version string `json:"api_version"`
+	Updated     struct {
+		Human   string `json:"human"`
+		Machine int64  `json:"machine"`
+	} `json:"updated"`
 }
 
 /* Repeaters struct to store repeater list reponse */
@@ -62,7 +75,7 @@ type Repeaters struct {
 }
 
 type Timer struct {
-	start time.Time
+	last int64
 }
 
 /* APIReceiver makes the http call to the API server */
@@ -94,8 +107,7 @@ func APIReceiver(URL string) ([]byte, error) {
 func RepeaterAPI(cmd string, ctype int) string {
 
 	/* Check to see if we should ask Rik's DB to update */
-	if config.LastRefresh.start.Sub(time.Now()) >= time.Duration(config.Refresh) {
-		config.LastRefresh.start = time.Now()
+	if time.Now().Unix()-config.LastRefresh.last >= config.Refresh {
 		if _, err := APIReceiver(config.ApiURL + "/update"); err != nil {
 			return "There was an issue updating: " + err.Error()
 		}
@@ -118,7 +130,10 @@ func RepeaterAPI(cmd string, ctype int) string {
 			return "Repeater not found!"
 		}
 
-		return fmt.Sprintf("Name: %s\nTx: %s\nRx: %s\nTone: %s\nLat: %f\nLon: %f\nLocator: %s\n\nAPI Provided by Rik M7GMT", repeater.Name, repeater.TX, repeater.RX, repeater.Tone, repeater.Location.Lat, repeater.Location.Lon, repeater.Location.Locator)
+		/* Last API ipdate time */
+		config.LastRefresh.last = repeater.Updated.Machine
+
+		return fmt.Sprintf("Name: %s\nMode: %s\nTx: %s\nRx: %s\nTone: %s\nLat: %f\nLon: %f\nLocator: %s\nKeeper: %s\nLast DB update: %s\n\nAPI Provided by Rik M7GMT", repeater.Name, repeater.Mode, repeater.TX, repeater.RX, repeater.Tone, repeater.Location.Lat, repeater.Location.Lon, repeater.Location.Locator, repeater.Keeper, repeater.Updated.Human)
 
 	case 1:
 		var repeaters Repeaters
@@ -138,17 +153,19 @@ func RepeaterAPI(cmd string, ctype int) string {
 
 		var response string
 		for i := 0; i < len(repeaters.Repeaters); i++ {
-			response += fmt.Sprintf("[%d]\nName: %s\nTx: %s\nRx: %s\nTone: %s\nLat: %f\nLon: %f\nLocator: %s\n\n", i+1, repeaters.Repeaters[i].Name, repeaters.Repeaters[i].TX, repeaters.Repeaters[i].RX, repeaters.Repeaters[i].Tone, repeaters.Repeaters[i].Location.Lat, repeaters.Repeaters[i].Location.Lon, repeaters.Repeaters[i].Location.Locator)
+			response += fmt.Sprintf("[%d]\nName: %s\nMode: %s\nTx: %s\nRx: %s\nTone: %s\nLat: %f\nLon: %f\nLocator: %s\nKeeper: %s\n\n", i+1, repeaters.Repeaters[i].Name, repeaters.Repeaters[i].Mode, repeaters.Repeaters[i].TX, repeaters.Repeaters[i].RX, repeaters.Repeaters[i].Tone, repeaters.Repeaters[i].Location.Lat, repeaters.Repeaters[i].Location.Lon, repeaters.Repeaters[i].Location.Locator, repeaters.Repeaters[i].Keeper)
 		}
 		return response + "API Provided by Rik M7GMT"
 
-	}
+	case 2:
+		return "This feature is due soon!"
 
+	}
 	return ""
 }
 
 /* RepeaterLookup work out if the user is looking for a repeater by name or locator */
-func RepeaterLookup(msg string) (string, error) {
+func RepeaterLookup(msg string, args *model.CommandArgs) (string, error) {
 	cmd := strings.TrimPrefix(msg, "ukrepeater ")
 
 	/* If the requested callsign/locator is too short tell the user */
@@ -163,6 +180,11 @@ func RepeaterLookup(msg string) (string, error) {
 		return RepeaterAPI(cmd, 1), nil
 	case "re":
 		return "Repeater database updates are handled automatically", nil
+	case "st":
+		if args.ChannelId != config.Admin {
+			return "Sorry, this command is only available to admins", nil
+		}
+		return RepeaterAPI(cmd, 2), nil
 	default:
 		return "", fmt.Errorf("Command is not known: %s, Full: %s", cmd[0:2], cmd)
 	}
@@ -180,11 +202,12 @@ func (p *Plugin) OnActivate() error {
 
 	conf := p.API.GetPluginConfig()
 
+	config.Admin = conf["admin"].(string)
 	config.ApiURL = conf["api"].(string)
-	//config.Refresh = conf["refresh"].(int)
+	//config.Refresh = conf["refresh"].(int64)
 	/* Currently hard coded refresh time */
 	config.Refresh = 86400
-	config.LastRefresh.start = time.Now()
+	config.LastRefresh.last = time.Now().Unix()
 
 	p.configuration = &config
 
@@ -214,7 +237,7 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 				}, nil
 			}
 		}
-		responseMsg, err = RepeaterLookup(callsign)
+		responseMsg, err = RepeaterLookup(callsign, args)
 		if err != nil {
 			responseMsg = err.Error()
 		}
