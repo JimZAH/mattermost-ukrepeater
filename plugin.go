@@ -111,6 +111,8 @@ func RepeaterAPI(cmd string, ctype int) string {
 		if _, err := APIReceiver(config.ApiURL + "/update"); err != nil {
 			return "There was an issue updating: " + err.Error()
 		}
+		/* Last API update time */
+		config.LastRefresh.last = time.Now().Unix()
 	}
 
 	switch ctype {
@@ -129,9 +131,6 @@ func RepeaterAPI(cmd string, ctype int) string {
 		if repeater.Name == "" {
 			return "Repeater not found!"
 		}
-
-		/* Last API ipdate time */
-		config.LastRefresh.last = repeater.Updated.Machine
 
 		return fmt.Sprintf("Name: %s\nMode: %s\nTx: %s\nRx: %s\nTone: %s\nLat: %f\nLon: %f\nLocator: %s\nKeeper: %s\nLast DB update: %s\n\nAPI Provided by Rik M7GMT", repeater.Name, repeater.Mode, repeater.TX, repeater.RX, repeater.Tone, repeater.Location.Lat, repeater.Location.Lon, repeater.Location.Locator, repeater.Keeper, repeater.Updated.Human)
 
@@ -207,7 +206,7 @@ func (p *Plugin) OnActivate() error {
 	//config.Refresh = conf["refresh"].(int64)
 	/* Currently hard coded refresh time */
 	config.Refresh = 86400
-	config.LastRefresh.last = time.Now().Unix()
+	config.LastRefresh.last = time.Now().Unix() - config.Refresh
 
 	p.configuration = &config
 
