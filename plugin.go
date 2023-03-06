@@ -94,6 +94,10 @@ func APIReceiver(URL string) ([]byte, error) {
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 {
+		return []byte{}, fmt.Errorf("Unexpected status code received from server")
+	}
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, fmt.Errorf("Error extracting data")
