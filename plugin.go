@@ -28,7 +28,7 @@ type Configuration struct {
 	LastRefresh Timer
 
 	/* Refresh rate for api database reload, reserved for future use */
-	Refresh int64
+	Refresh int
 }
 
 type Plugin struct {
@@ -75,7 +75,7 @@ type Repeaters struct {
 }
 
 type Timer struct {
-	last int64
+	last time.Time
 }
 
 /* APIReceiver makes the http call to the API server */
@@ -94,29 +94,31 @@ func APIReceiver(URL string) ([]byte, error) {
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	switch resp.StatusCode {
+	case 200:
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return []byte{}, fmt.Errorf("Error extracting data")
+		}
+		client.CloseIdleConnections()
+		return body, nil
+	case 404:
+		return []byte{}, fmt.Errorf("Not found")
+	default:
 		return []byte{}, fmt.Errorf("Unexpected status code received from server")
 	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return []byte{}, fmt.Errorf("Error extracting data")
-	}
-
-	client.CloseIdleConnections()
-	return body, nil
 }
 
 /* RepeaterAPI handle and process the request type */
 func RepeaterAPI(cmd string, ctype int) string {
 
 	/* Check to see if we should ask Rik's DB to update */
-	if time.Now().Unix()-config.LastRefresh.last >= config.Refresh {
+	if time.Since(config.LastRefresh.last) >= time.Duration(config.Refresh) {
 		if _, err := APIReceiver(config.ApiURL + "/update"); err != nil {
 			return "There was an issue updating: " + err.Error()
 		}
 		/* Last API update time */
-		config.LastRefresh.last = time.Now().Unix()
+		config.LastRefresh.last = time.Now()
 	}
 
 	switch ctype {
@@ -124,7 +126,7 @@ func RepeaterAPI(cmd string, ctype int) string {
 		var repeater Repeater
 		body, err := APIReceiver(config.ApiURL + "/repeater/" + cmd)
 		if err != nil {
-			return "Error extracting project data response: " + err.Error()
+			return "Error: " + err.Error()
 		}
 
 		err = json.Unmarshal(body, &repeater)
@@ -142,7 +144,7 @@ func RepeaterAPI(cmd string, ctype int) string {
 		var repeaters Repeaters
 		body, err := APIReceiver(config.ApiURL + "/findbylocator/" + cmd)
 		if err != nil {
-			return "Error extracting project data response: " + err.Error()
+			return "Error: " + err.Error()
 		}
 
 		err = json.Unmarshal(body, &repeaters)
@@ -207,10 +209,10 @@ func (p *Plugin) OnActivate() error {
 
 	config.Admin = conf["admin"].(string)
 	config.ApiURL = conf["api"].(string)
-	//config.Refresh = conf["refresh"].(int64)
+	//config.Refresh = conf["refresh"].(uint)
 	/* Currently hard coded refresh time */
 	config.Refresh = 86400
-	config.LastRefresh.last = time.Now().Unix() - config.Refresh
+	config.LastRefresh.last = time.Now()
 
 	p.configuration = &config
 
