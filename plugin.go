@@ -113,7 +113,7 @@ func APIReceiver(URL string) ([]byte, error) {
 func RepeaterAPI(cmd string, ctype int) string {
 
 	/* Check to see if we should ask Rik's DB to update */
-	if time.Since(config.LastRefresh.last) >= time.Duration(config.Refresh) {
+	if time.Since(config.LastRefresh.last) >= time.Duration(config.Refresh)*time.Second {
 		if _, err := APIReceiver(config.ApiURL + "/update"); err != nil {
 			return "There was an issue updating: " + err.Error()
 		}
