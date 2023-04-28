@@ -161,10 +161,6 @@ func RepeaterAPI(cmd string, ctype int) string {
 			response += fmt.Sprintf("[%d]\nName: %s\nMode: %s\nTx: %s\nRx: %s\nTone: %s\nLat: %f\nLon: %f\nLocator: %s\nKeeper: %s\n\n", i+1, repeaters.Repeaters[i].Name, repeaters.Repeaters[i].Mode, repeaters.Repeaters[i].TX, repeaters.Repeaters[i].RX, repeaters.Repeaters[i].Tone, repeaters.Repeaters[i].Location.Lat, repeaters.Repeaters[i].Location.Lon, repeaters.Repeaters[i].Location.Locator, repeaters.Repeaters[i].Keeper)
 		}
 		return response + "API Provided by Rik M7GMT"
-
-	case 2:
-		return "This feature is due soon!"
-
 	}
 	return ""
 }
@@ -183,13 +179,6 @@ func RepeaterLookup(msg string, args *model.CommandArgs) (string, error) {
 		return RepeaterAPI(cmd, 0), nil
 	case "jo", "io":
 		return RepeaterAPI(cmd, 1), nil
-	case "re":
-		return "Repeater database updates are handled automatically", nil
-	case "st":
-		if args.ChannelId != config.Admin {
-			return "Sorry, this command is only available to admins", nil
-		}
-		return RepeaterAPI(cmd, 2), nil
 	default:
 		return "", fmt.Errorf("Command is not known: %s, Full: %s", cmd[0:2], cmd)
 	}
