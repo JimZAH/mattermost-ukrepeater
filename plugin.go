@@ -48,7 +48,7 @@ type Repeater struct {
 	RX       string `json:"rx"`
 	Tone     string `json:"tone"`
 	Channel  string `json:"channel"`
-	Mode     string `json:"modes"`
+	Mode     []string `json:"modes"`
 	Location struct {
 		Lat       float32 `json:"lat"`
 		Lon       float32 `json:"lng"`
