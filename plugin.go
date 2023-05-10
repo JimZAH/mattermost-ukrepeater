@@ -128,7 +128,6 @@ func Aprs(callsign string) string {
 		if i+1 < len(callsign) {
 			hash ^= int(callsign[i+1])
 		}
-		fmt.Println(i)
 	}
 	hash = hash & 0x7fff
 	return fmt.Sprintf("Your APRS password is: %d", hash)
