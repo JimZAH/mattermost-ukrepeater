@@ -43,11 +43,11 @@ type Plugin struct {
 
 /* Repeater struct to store single repeater instance */
 type Repeater struct {
-	Name     string `json:"name"`
-	TX       string `json:"tx"`
-	RX       string `json:"rx"`
-	Tone     string `json:"tone"`
-	Channel  string `json:"channel"`
+	Name     string   `json:"name"`
+	TX       string   `json:"tx"`
+	RX       string   `json:"rx"`
+	Tone     string   `json:"tone"`
+	Channel  string   `json:"channel"`
 	Mode     []string `json:"modes"`
 	Location struct {
 		Lat       float32 `json:"lat"`
@@ -107,6 +107,31 @@ func APIReceiver(URL string) ([]byte, error) {
 	default:
 		return []byte{}, fmt.Errorf("Unexpected status code received from server")
 	}
+}
+
+/* APRS password generator
+ * Thanks to Magicbug (Peter 2E0SQL)
+ * Code ported to Go
+ */
+func Aprs(callsign string) string {
+
+	if len(callsign) > 10 {
+		return ""
+	}
+
+	callsign = strings.ToUpper(callsign)
+
+	hash := 0x73e2
+
+	for i := 0; i < len(callsign); i += 2 {
+		hash ^= int(callsign[i]) << 8
+		if i+1 < len(callsign) {
+			hash ^= int(callsign[i+1])
+		}
+		fmt.Println(i)
+	}
+	hash = hash & 0x7fff
+	return fmt.Sprintf("Your APRS password is: %d", hash)
 }
 
 /* RepeaterAPI handle and process the request type */
@@ -231,9 +256,19 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 				}, nil
 			}
 		}
-		responseMsg, err = RepeaterLookup(callsign, args)
-		if err != nil {
-			responseMsg = err.Error()
+
+		/*
+		 * Check to see if user is requesting APRS password
+		 */
+		if strings.ToUpper(strings.Fields(args.Command)[1]) == "APRS" {
+			if len(strings.Fields(args.Command)) > 2 {
+				responseMsg = Aprs(strings.Fields(args.Command)[2])
+			}
+		} else {
+			responseMsg, err = RepeaterLookup(callsign, args)
+			if err != nil {
+				responseMsg = err.Error()
+			}
 		}
 	default:
 		responseMsg = "Unknown command"
